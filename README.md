@@ -16,8 +16,9 @@ I would also recommend: [Android Bash Completion][4]
 
 ## Snap
 
-You can install logcat-colorize from Snappy: https://snapcraft.io/logcat-colorize.
+> Only for original version, for this cloned repo, you have to install it from source. Sorry.
 
+You can install logcat-colorize from Snappy: https://snapcraft.io/logcat-colorize.
 
 ## DIY (from sources)
 
@@ -27,7 +28,7 @@ This depends on:
   * libboost-program-options
 
 If you are on Debian/Ubuntu:
-    
+
         $ sudo apt-get install -y build-essential libboost-regex-dev libboost-program-options-dev
 
 If you are on Mac OS X (using macports with libs installed in /opt/local):
@@ -44,16 +45,15 @@ Compile and install:
 
         # Help and version info:
         $ logcat-colorize
-        
+
         # Simplest usage:
         $ adb logcat | logcat-colorize
-        
+
         # Using specific device, with time details, and filtering:
         $ adb -s emulator-5556 logcat -v time System.err:V *:S | logcat-colorize
-        
+
         # Piping to grep for regex filtering (much better than adb filter):
         $ adb logcat -v time | egrep -i '(sensor|wifi)' | logcat-colorize
-
 
 That's it!
 
@@ -62,6 +62,6 @@ That's it!
 
 
 [1]: http://developer.android.com/tools/debugging/debugging-log.html#outputFormat
-[2]: https://bitbucket.org/brunobraga/logcat-colorize/downloads/example.jpg
+[2]: https://raw.githubusercontent.com/thomasyuan/logcat-colorize/master/resource/colorize.png
 [3]: https://bitbucket.org/brunobraga/logcat-colorize/src/8a17155d0d7c29c19130695d7a699e83830456ce?at=0.2
 [4]: https://github.com/mbrubeck/android-completion
