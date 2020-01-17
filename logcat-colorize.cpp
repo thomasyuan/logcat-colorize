@@ -2,7 +2,7 @@
  File:      logcat-colorize.cpp
 
  Purpose:   Colorizes Android's logcat output in command-line windows
-            Works on linux/mac terminals only. 
+            Works on linux/mac terminals only.
 
  Author:    BRAGA, Bruno <bruno.braga@gmail.com>
  Author:    CARLON, Luca <carlon.luca@gmail.com>
@@ -20,15 +20,15 @@
             implied. See the License for the specific language governing
             permissions and limitations under the License.
 
- Notes:     
+ Notes:
             Bugs, issues and requests are welcome at:
             https://github.com/carlonluca/logcat-colorize/issues
 
 
  Dependencies:
- 
-            libboost-regex-dev 
-            libboost-program-options-dev 
+
+            libboost-regex-dev
+            libboost-program-options-dev
 
  Compiling:
             See Makefile.
@@ -50,7 +50,7 @@ const string VERSION = "0.8.0";
 const int SUCCESS = 0;
 const int ERROR_UNKNOWN = 1;
 
-const string HELP = 
+const string HELP =
     NAME + " v" + VERSION + "\n"
     "\n"
     "A simple script to colorize Android debugger's logcat output.\n"
@@ -64,6 +64,7 @@ const string HELP =
     "   -i, --ignore        does not output non-matching data\n"
     "                       (by default, those are printed out without colorizing)\n"
     "   -h, --help          prints this help information\n"
+    "   -f, --full          prints full logs, by default, process/thread id are omitted\n"
     "   -s, --spotlight     highlight pattern in the output, value as REGEXP\n"
     "                       (i.e, -s '\bWORD\b'\n"
     "\n"
@@ -72,7 +73,7 @@ const string HELP =
     "    adb logcat | " + NAME + "\n"
     "\n"
     "    Using specific device, with time details, and filtering:\n"
-    "    adb -s emulator-5556 logcat -v time System.err:V *:S | " + NAME + "\n" 
+    "    adb -s emulator-5556 logcat -v time System.err:V *:S | " + NAME + "\n"
     "\n"
     "    Piping to grep for regex filtering (much better than adb filter):\n"
     "    adb logcat -v time | egrep -i '(sensor|wifi)' | " + NAME + "\n"
@@ -134,7 +135,7 @@ struct Logcat {
     string level;
     string tag;
     string process;
-    string message; 
+    string message;
     string thread;
 };
 
@@ -146,6 +147,7 @@ protected:
     boost::regex pattern;
     boost::regex spotlight_pattern;
     string spotlight_color;
+    bool verbose;
     boost::smatch match(const string& raw) {
         string::const_iterator start;
         start = raw.begin();
@@ -155,11 +157,28 @@ protected:
         return results;
     }
 
+    const static unsigned int PID_LENGTH = 5;
+    const static unsigned int TAG_LENGTH = 20;
+    string getFixedLengthString(const string& original, bool prefix = true,
+            unsigned int size = PID_LENGTH)
+    {
+        const static string spaces = "                               ";
+        if (original.length() > size) {
+            return original.substr(0, size);
+        }
+
+        return prefix ? spaces.substr(0, size - original.length()) + original
+                      : original + spaces.substr(0, size - original.length());
+    }
+
 public:
     void setSpotlight(const string& spotlight) {
         this->spotlight_pattern = (boost::format("(%1%)") % spotlight).str();
     }
 
+    void enableDetails(bool enable) {
+        this->verbose = enable;
+    }
     const int type = -1;
     Format(const string& pattern) {
         this->l = Logcat { /*date   */ "",
@@ -170,6 +189,7 @@ public:
                            /*thread */ "" };
         this->pattern = pattern;
         this->spotlight_color = Color::fwhite + Color::bred + "$1" + Color::reset;
+        this->verbose = false;
     }
     virtual ~Format() {};
     static const int BRIEF;
@@ -179,40 +199,44 @@ public:
     static const int TIME;
     static const int THREADTIME;
     static const int LONG;
-    
+
     virtual void parse(const string raw) = 0;
     virtual bool valid() { return false; }
     void print() {
-        
+
         string out = "";
-        
-        // date    
-        if (this->l.date != "") 
-            out += Color::fpurple + " " + this->l.date + " " + Color::reset;
-        
-        // level
-        if (this->l.level != "") {
-            if (this->l.level == "V") out += Color::fwhite + Color::bcyan   + Color::bold + " " + this->l.level + " " + Color::reset;
-            if (this->l.level == "D") out += Color::fwhite + Color::bblue   + Color::bold + " " + this->l.level + " " + Color::reset;
-            if (this->l.level == "I") out += Color::fwhite + Color::bgreen  + Color::bold + " " + this->l.level + " " + Color::reset;
-            if (this->l.level == "W") out += Color::fwhite + Color::byellow + Color::bold + " " + this->l.level + " " + Color::reset;
-            if (this->l.level == "E") out += Color::fwhite + Color::bred    + Color::bold + " " + this->l.level + " " + Color::reset;
-            if (this->l.level == "F") out += Color::fwhite + Color::bred    + Color::bold + " " + this->l.level + " " + Color::reset;
-        }
-        
+
+        // date
+        if (this->l.date != "")
+            out += Color::fpurple + " " + this->l.date + Color::reset;
+
         // process/thread
-        if (this->l.process != "") {
+        if (this->l.process != "" && this->verbose) {
             out += " " + Color::fcyan + Color::bblack + "[" + this->l.process + (this->l.thread != "" ? "/" + this->l.thread : "") + "]" + Color::reset;
         }
-        
-        // tag    
+
+        // tag
         if (this->l.tag != "")
             out += " " + Color::fwhite + this->l.tag + Color::reset;
+
+        // level
+        if (this->l.level != "") {
+            string color;
+            if (this->l.level == "V") color = Color::fwhite + Color::bcyan   + Color::bold;
+            if (this->l.level == "D") color = Color::fwhite + Color::bblue   + Color::bold;
+            if (this->l.level == "I") color = Color::fwhite + Color::bgreen  + Color::bold;
+            if (this->l.level == "W") color = Color::fwhite + Color::byellow + Color::bold;
+            if (this->l.level == "E") color = Color::fwhite + Color::bred    + Color::bold;
+            if (this->l.level == "F") color = Color::fwhite + Color::bred    + Color::bold;
+
+            out += color + " " + this->l.level + " " + Color::reset;
+        }
+
 
         // message
         if (this->l.message != "") {
             const string* messageColor;
-            if (this->l.level == "V") messageColor = &Color::fblack;
+            if (this->l.level == "V") messageColor = &Color::fcyan;
             else if (this->l.level == "D") messageColor = &Color::fblue;
             else if (this->l.level == "I") messageColor = &Color::fgreen;
             else if (this->l.level == "W") messageColor = &Color::fyellow;
@@ -254,9 +278,9 @@ public:
             this->l.date = "";
             this->l.level = matches[1];
             this->l.message = matches[3];
-            this->l.process = "";
-            this->l.tag = matches[2];
-            this->l.thread = "";
+            this->l.process = getFixedLengthString("");
+            this->l.tag = getFixedLengthString(matches[2], true, TAG_LENGTH);
+            this->l.thread = getFixedLengthString("");
         }
     }
     virtual bool valid() {
@@ -276,9 +300,9 @@ public:
             this->l.date = "";
             this->l.level = matches[1];
             this->l.message = matches[3];
-            this->l.process = matches[2];
-            this->l.tag = matches[4];
-            this->l.thread = "";
+            this->l.process = getFixedLengthString(matches[2]);
+            this->l.tag = getFixedLengthString(matches[4], true, TAG_LENGTH);
+            this->l.thread = getFixedLengthString("");
         }
     }
     virtual bool valid() {
@@ -299,9 +323,9 @@ public:
             this->l.date = "";
             this->l.level = matches[1];
             this->l.message = matches[4];
-            this->l.process = matches[3];
-            this->l.tag = matches[2];
-            this->l.thread = "";
+            this->l.process = getFixedLengthString(matches[3]);
+            this->l.tag = getFixedLengthString(matches[2], true, TAG_LENGTH);
+            this->l.thread = getFixedLengthString("");
         }
     }
     virtual bool valid() {
@@ -320,10 +344,10 @@ public:
         if (matches.size() >= 6) {
             this->l.date = matches[1];
             this->l.level = matches[2];
-            this->l.message = matches[5];
+            this->l.message = getFixedLengthString(matches[5]);
             this->l.process = matches[4];
-            this->l.tag = matches[3];
-            this->l.thread = "";
+            this->l.tag = getFixedLengthString(matches[3], true, TAG_LENGTH);
+            this->l.thread = getFixedLengthString("");
         }
     }
     virtual bool valid() {
@@ -343,9 +367,9 @@ public:
             this->l.date = matches[1];
             this->l.level = matches[4];
             this->l.message = matches[6];
-            this->l.process = matches[2];
-            this->l.tag = matches[5];
-            this->l.thread = matches[3];
+            this->l.process = getFixedLengthString(matches[2]);
+            this->l.tag = getFixedLengthString(matches[5], true, TAG_LENGTH);
+            this->l.thread = getFixedLengthString(matches[3], false);
         }
     }
     virtual bool valid() {
@@ -399,6 +423,7 @@ int main(int argc, char** argv) {
         desc.add_options()
           ("help,h", "")
           ("spotlight,s",po::value<string>(), "")
+          ("full,f", "")
           ("ignore,i", "");
 
         po::variables_map vm;
@@ -428,6 +453,7 @@ int main(int argc, char** argv) {
                             std::string line = vm["spotlight"].as<string>();
                             f->setSpotlight(line);
                         }
+                        f->enableDetails(vm.count("full"));
                     }
                 }
                 if (f == NULL) {
